@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "read",
+    "description": "Reads a file from the local filesystem.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "description": "The absolute path to the file to read"
+        },
+        "offset": {
+          "type": "integer",
+          "description": "The line number to start reading from"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "The number of lines to read"
+        }
+      },
+      "required": ["file_path"]
+    }
+  }
+}

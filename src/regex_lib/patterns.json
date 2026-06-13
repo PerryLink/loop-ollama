@@ -1,0 +1,78 @@
+{
+  "_description": "Tier-1 格式修复——12 条正则规则。每项含 id、pattern、replacement 和 description。",
+  "version": "0.1.0",
+  "rules": [
+    {
+      "id": "R01",
+      "pattern": "\\{\"name\":\\s*\"([^\"]+)\"\\s*,\\s*\"arguments\":\\s*\\{[^}]*$",
+      "replacement": "{\"name\": \"$1\", \"arguments\": {}}",
+      "description": "修复未闭合的 tool_call JSON——补全缺失的 arguments 闭合花括号"
+    },
+    {
+      "id": "R02",
+      "pattern": "\"arguments\":\\s*\"(\\{[^\"]*\\})\"",
+      "replacement": "\"arguments\": $1",
+      "description": "移除 arguments 值两端的多余双引号——Ollama 常见错误"
+    },
+    {
+      "id": "R03",
+      "pattern": "'(name|arguments|content|role)':\\s*'([^']*)'",
+      "replacement": "\"$1\": \"$2\"",
+      "description": "修复单引号 JSON——Ollama 低参数量模型常见输出格式"
+    },
+    {
+      "id": "R04",
+      "pattern": "^\\s*\\{\"name\":",
+      "replacement": "[{\"name\":",
+      "description": "修复 tool_calls 外层缺少方括号——单 tool_call 遗漏外层 []"
+    },
+    {
+      "id": "R05",
+      "pattern": "```(?:json)?\\s*\\n?(.*?)\\n?```",
+      "replacement": "$1",
+      "description": "移除 markdown code block 包裹——模型习惯性用 ```json 包裹"
+    },
+    {
+      "id": "R06",
+      "pattern": "([^\\\\])\"([^\"]*?)\"",
+      "replacement": "$1\"$2\"",
+      "description": "引号转义规范化——修复字符串内部引号转义缺失"
+    },
+    {
+      "id": "R07",
+      "pattern": "(\\{[^}]*)$",
+      "replacement": "$1}",
+      "description": "补全末尾缺失的右花括号——截断的 JSON 对象"
+    },
+    {
+      "id": "R08",
+      "pattern": "\"function\":\\s*\\{(.*?)\\}\\s*$",
+      "replacement": "$1",
+      "description": "移除 function 嵌套层多余包装——将 function 内容提升到顶层"
+    },
+    {
+      "id": "R09",
+      "pattern": "\\}\\s*\\n\\s*\\{",
+      "replacement": "},\\n{",
+      "description": "修复多 tool_call 间的逗号缺失——数组元素分隔符"
+    },
+    {
+      "id": "R10",
+      "pattern": "\"arguments\":\\s*null",
+      "replacement": "\"arguments\": {}",
+      "description": "arguments 值为 null 时设为空对象——避免后续解析空指针"
+    },
+    {
+      "id": "R11",
+      "pattern": "[\\uFEFF\\u200B\\u200C\\u200D\\u200E\\u200F]",
+      "replacement": "",
+      "description": "移除 BOM 和零宽字符——清理不可见 Unicode 干扰字符"
+    },
+    {
+      "id": "R12",
+      "pattern": "\"content\":\\s*\\{\\s*\"content\":\\s*\"([^\"]*)\"\\s*\\}",
+      "replacement": "\"content\": \"$1\"",
+      "description": "修复 content 字段意外嵌套——模型输出两层 content 嵌套"
+    }
+  ]
+}

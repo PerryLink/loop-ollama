@@ -1,0 +1,9 @@
+# loop-ollama 依赖文件
+# Python >= 3.10 必需
+# 核心运行时依赖
+requests==2.28.0
+jsonschema==4.17.0
+
+# 开发/测试依赖 (非 PyInstaller 编译所需)
+pytest==7.0.0
+pytest-mock==3.10.0

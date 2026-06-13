@@ -1,0 +1,78 @@
+{
+  "_description": "Tier-3 降级纯文本——12 条启发式提取规则。当 JSON 解析完全失败时，从纯文本响应中提取 tool_call。",
+  "version": "0.1.0",
+  "rules": [
+    {
+      "id": "H01",
+      "pattern": "(\\w+)\\(([^)]*)\\)",
+      "description": "提取 function_call(...) 语法——如 read_file('/path/to/file')",
+      "extract": "tool_name_and_args_from_parentheses"
+    },
+    {
+      "id": "H02",
+      "pattern": "(?:Action|action|调用|执行)[：:]\\s*(\\w+)",
+      "description": "提取 Action: tool_name 格式——中文或英文冒号后的工具名",
+      "extract": "tool_name_after_action_label"
+    },
+    {
+      "id": "H03",
+      "pattern": "\"function\"\\s*:\\s*\"(\\w+)\"",
+      "description": "提取 JSON 片段中的 function 名称——解析不完整 JSON",
+      "extract": "function_name_from_partial_json"
+    },
+    {
+      "id": "H04",
+      "pattern": "(?:read|读取|读取文件)\\s+[\"']?([^\\s\"'\\\\n,，]+)[\"']?",
+      "description": "提取 read_file 文件名——自然语言描述中识别文件路径",
+      "extract": "file_path_from_read_action"
+    },
+    {
+      "id": "H05",
+      "pattern": "(?:write|写入|写入文件|创建)\\s+[\"']?([^\\s\"'\\\\n,，]+)[\"']?",
+      "description": "提取 write_file 文件名——自然语言描述中识别文件路径",
+      "extract": "file_path_from_write_action"
+    },
+    {
+      "id": "H06",
+      "pattern": "`([^`]+)`",
+      "description": "提取反引号中的命令——Markdown 代码标记中的命令文本",
+      "extract": "command_from_backtick"
+    },
+    {
+      "id": "H07",
+      "pattern": "(?:task_complete|任务完成|完成|done|DONE)",
+      "description": "检测 task_complete 完成声明——多种语言的任务完成标记",
+      "extract": "task_complete_signal"
+    },
+    {
+      "id": "H08",
+      "pattern": "(?:Thought|思考|分析)[：:]\\s*(.+?)(?:\\n|$)",
+      "description": "提取 Thought 思考内容——用于理解模型意图而非执行",
+      "extract": "thought_content"
+    },
+    {
+      "id": "H09",
+      "pattern": "(?:replace|替换|old_string)\\s+[\"']([^\"']+)[\"']",
+      "description": "提取 edit_file 的 old_string——自然语言表述的替换字符串",
+      "extract": "old_string_from_edit_action"
+    },
+    {
+      "id": "H10",
+      "pattern": "(?:glob|glob_search|搜索文件)\\s+[\"']?([^\\s\"'\\\\n]+)[\"']?",
+      "description": "提取 glob_search 模式——自然语言中的文件搜索模式",
+      "extract": "glob_pattern_from_search"
+    },
+    {
+      "id": "H11",
+      "pattern": "(?:grep|grep_search|搜索内容)\\s+[\"']?([^\\s\"'\\\\n]+)[\"']?",
+      "description": "提取 grep_search 模式——自然语言中的内容搜索正则",
+      "extract": "grep_pattern_from_search"
+    },
+    {
+      "id": "H12",
+      "pattern": "^([A-Z][a-z_]+)",
+      "description": "从首行大写词提取工具名——模型在无格式时的最后兜底",
+      "extract": "tool_name_from_first_capitalized_word"
+    }
+  ]
+}
