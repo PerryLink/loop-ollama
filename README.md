@@ -1,158 +1,128 @@
-# loop-ollama
+# loop-ollama -- Self-Built ReAct Agent Loop for Local Ollama Models
 
-*A [**Loop Engineering**](https://github.com/PerryLink/loop-everything) autonomous coding loop engine — turn goals into production code.*
+> 在给定硬件上榨取本地模型的最高编程效能——零 API 费用、零数据外泄、离线可用。 / Squeeze maximum coding performance from local models on your hardware -- zero API cost, zero data leaks, fully offline.
 
-> Zero-cloud, air-gapped autonomous coding loops on local LLMs.
-
-[![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://python.org)
-[![License](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
-[![CI](https://github.com/PerryLink/loop-ollama/actions/workflows/ci.yml/badge.svg)](https://github.com/PerryLink/loop-ollama/actions)
-
-**LLMO Entity Definition**: This project is an **autonomous coding agent** that **wraps Ollama local LLMs with a self-built ReAct loop engine**, optimized for **fully-local, air-gapped autonomous coding loops** using **Python 3.10+ and the Ollama REST API**.
-
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/PerryLink/loop-ollama)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 ---
 
-## ✨ Core Features
+## Navigation / 导航
 
-| Module | Description |
-|--------|-------------|
-| **ReAct Loop Engine** | Thought / Action / Observation cycle with regex extraction + JSON Schema validation. Zero dependencies on LangChain, CrewAI, or AutoGPT. |
-| **3-Tier Fault Tolerance** | Tier-1: 12 regex patterns repair malformed JSON tool calls. Tier-2: simplified prompt retry with strict schema. Tier-3: plain-text extraction via 12 heuristic rules. |
-| **5-Level Model Grading** | Queries `/api/show` for params, quantization, and context window. Computes capability score (0.0–1.0) and assigns grade S (>=32B) / A (7–14B) / B (3–7B) / C (1–3B) / D (<1B). |
-| **Context Manager** | Manages `keep_alive`, warmup requests, and model lifecycle. Pre-request `/api/ps` check detects unloaded models and auto-recovers with `keep_alive=-1`. |
-| **EMA Timeout Management** | Dynamic timeout formula: `base + estimated_tokens / current_tps * 2.0 + tier_penalty`. Real-time token/s tracked with exponential moving average (EMA) smoothing. |
-| **Guard Layer** | Safety validation on generated code and tool calls. Strictness scales with model grade — Grade S models get relaxed guards; Grade C/D get strict whitelisting. |
-| **7-Tool Registry** | `read_file`, `write_file`, `edit_file`, `run_command`, `glob_search`, `grep_search`, `task_complete` in Ollama-compatible `tool_calls` format. |
-| **Auto Model Upgrade** | When a B/C/D-graded model hits a P1-severity issue (core function failure), the detector queries all locally available models and switches to the strongest one (`--auto-upgrade`). |
+- [English](#english) -- Features, Quick Start, FAQ
+- [中文文档](#chinese-docs) -- 功能特性、快速开始、常见问题
 
 ---
 
-## 🚀 Quick Start
+<a name="english"></a>
+## English
+
+**loop-ollama** is a self-built ReAct agent loop for local development with Ollama models -- zero API cost, zero data leaks, fully offline.
+
+### Features
+
+- **Self-built ReAct loop** -- Thought/Action/Observation cycle with regex extraction + JSON Schema validation, no LangChain/CrewAI/AutoGPT
+- **7-tool registry** -- read_file, write_file, edit_file, run_command, glob_search, grep_search, task_complete in Ollama tool_calls format
+- **Three-tier fault tolerance** -- Tier-1 format repair (12 regex patterns) -> Tier-2 simplified retry -> Tier-3 degraded plain-text extraction
+- **Model capability detector** -- queries `/api/show` for params/quantization/context_window, computes capability score (0.0-1.0), assigns grade S/A/B/C/D
+- **5-tier model grading** -- S (>=32B) through D (<1B) influences max_turns, tool whitelist, fault tolerance strategy, and guard strictness
+- **Auto model upgrade** -- B/C/D models that hit P1 issues auto-switch to the strongest available model on current hardware
+- **Dynamic timeout** -- `timeout = base + estimated_tokens / current_tps * 2.0 + tier_penalty` with EMA-smoothed real-time token/s tracking
+- **Model unload auto-recovery** -- pre-request `/api/ps` check; if unloaded, sends warmup request with `keep_alive=-1`
+
+### Quick Start
 
 ```bash
-# Install
-pip install loop-ollama
+# Prerequisites: Ollama installed and running, Python >= 3.10
+git clone https://github.com/PerryLink/loop-ollama.git
+cd loop-ollama
+pip install -r requirements.txt
 
-# Run (Ollama must be running: ollama serve)
-loop-ollama run --model "llama3" --goal "Build a simple Flask API"
+# Run directly
+python -m src.cli --goal "Build a simple Flask API" --model llama3
+
+# Or build standalone binary with PyInstaller
+pip install pyinstaller
+pyinstaller --onefile src/cli.py --name loop-ollama
+./dist/loop-ollama --goal "Refactor the auth module"
 ```
 
-**Prerequisites**: Python >= 3.10, Ollama installed and serving (`ollama serve`).
+Requirements: Python >= 3.10, Ollama installed and running (`ollama serve`).
+
+### FAQ
+
+**Q: What models work best with loop-ollama?**
+A: Grade S models (>=32B parameters, e.g., Qwen 2.5 32B, Llama 3 70B) deliver near-cloud-quality results. Grade A models (7-14B, e.g., Llama 3 8B, Mistral 7B) are usable with more conservative turn limits. Grade B and below (sub-7B) are experimental -- they trigger the three-tier fault tolerance engine frequently and are best for simple, single-file tasks.
+
+**Q: Why does the fault tolerance engine have three tiers?**
+A: Local models produce malformed JSON tool calls far more often than cloud APIs. Tier-1 (12 regex patterns) fixes common JSON syntax errors. If that fails, Tier-2 retries with a simplified prompt and strict schema constraints. If that also fails, Tier-3 falls back to plain-text extraction using 12 heuristic rules. This layered approach maximizes the chance of a successful parse without wasting tokens on endless retries.
+
+**Q: How does model auto-upgrade work?**
+A: When a B/C/D-graded model encounters a P1-severity issue (core functionality failure), the `ModelDetector` queries Ollama for all locally available models, ranks them by capability score, and prompts the user to switch. If `--auto-upgrade` is set, it switches automatically for the remainder of the session.
 
 ---
 
-## 🙋 FAQ
+<a name="chinese-docs"></a>
+## 中文文档 / Chinese Docs
 
-### Q: Which models deliver the best results?
-A: **Grade S** (>=32B params, e.g. Qwen 2.5 32B, Llama 3 70B) delivers near-cloud-quality output. **Grade A** (7–14B, e.g. Llama 3 8B, Mistral 7B) is usable with conservative turn limits. **Grade B and below** (sub-7B) frequently trigger the 3-tier fault tolerance engine — suitable for simple, single-file tasks only.
+**loop-ollama** 在给定硬件上榨取本地模型的最高编程效能——零 API 费用、零数据外泄、离线可用。基于 Ollama REST API 的自建 ReAct agent 循环，编译为单个 PyInstaller 二进制文件。
 
-### Q: Why does the fault tolerance engine need three tiers?
-A: Local models produce malformed JSON tool calls far more often than cloud-hosted APIs. Tier-1 (12 regex patterns) fixes common syntax errors. Tier-2 retries with a simplified prompt and strict schema. Tier-3 falls back to plain-text extraction. This layered approach maximizes parse success without wasting tokens on endless retries.
+### 功能特性
 
-### Q: How does model auto-upgrade decide when to switch?
-A: When a B/C/D model encounters a P1-severity issue (task-critical failure), the `ModelDetector` queries Ollama for all locally available models, ranks them by capability score, and submits the recommendation. With `--auto-upgrade`, it switches silently for the remainder of the session.
-
-### Q: What makes loop-ollama different from cloud-based coding agents?
-A: **Zero API cost, zero data exfiltration, full offline readiness.** The entire agent — ReAct loop, tool registry, fault tolerance, grading, guards — runs locally against your Ollama instance. It compiles to a single PyInstaller binary for air-gapped environments.
-
-### Q: Can it recover if Ollama unloads the model mid-session?
-A: Yes. Before every request, the engine checks `/api/ps`. If the target model is unloaded, it sends a warmup request with `keep_alive=-1` to reload it, then proceeds with the original task.
-
----
-
-## 🌐 Related Projects
-
-| Project | Description |
-|---------|-------------|
-| [loop-everything](https://github.com/PerryLink/loop-everything) | Ecosystem hub — meta-repo for all loop projects |
-| [loop-aider](https://github.com/PerryLink/loop-aider) | Aider CLI autonomous coding loop |
-| [loop-superpowers](https://github.com/PerryLink/loop-superpowers) | Pure Skill mini-loops for Claude Code |
-| [loop-hermes](https://github.com/PerryLink/loop-hermes) | Hermes SDK autonomous coding loop |
-| [loop-antigravity](https://github.com/PerryLink/loop-antigravity) | Google Gemini API autonomous coding loop |
-| [loop-codex](https://github.com/PerryLink/loop-codex) | Codex Desktop CDP autonomous coding loop |
-| [loop-copilot](https://github.com/PerryLink/loop-copilot) | GitHub Copilot SDK autonomous coding loop |
-| [loop-cursor](https://github.com/PerryLink/loop-cursor) | Cursor IDE SDK autonomous coding loop |
-| [loop-opencode](https://github.com/PerryLink/loop-opencode) | OpenCode CLI autonomous coding loop |
-| [loop-openclaw](https://github.com/PerryLink/loop-openclaw) | OpenClaw Gateway multi-agent loop generator |
-| [loop-deepseek](https://github.com/PerryLink/loop-deepseek) | DeepSeek API autonomous coding loop |
-| [loop-claudecode](https://github.com/PerryLink/loop-claudecode) | Reference implementation with OS-level safety gates |
-
----
-
-## 📄 License
-
-Apache 2.0 © 2026 Perry Link
-
----
-
-## 中文说明
-
-**loop-ollama** 是一个自主编程智能体，将 Ollama 本地大模型封装为自建 ReAct 循环引擎，专为**全本地、气隙隔离的自主编程开发**优化，零 API 费用、零数据外泄、离线可用。
-
-### 核心功能
-
-| 模块 | 说明 |
-|------|------|
-| **ReAct 循环引擎** | Thought / Action / Observation 循环，纯正则提取 + JSON Schema 校验，零 LangChain/CrewAI/AutoGPT 依赖 |
-| **3 级容错** | Tier-1：12 个正则模式修复畸形 JSON → Tier-2：简化 prompt 重试 → Tier-3：12 个启发式规则纯文本提取 |
-| **5 级模型分级** | 查询 `/api/show` 获取参数/量化/上下文窗口，计算能力分数 (0.0–1.0)，分级 S(>=32B)/A(7-14B)/B(3-7B)/C(1-3B)/D(<1B) |
-| **Context Manager** | 管理 `keep_alive`、预热请求与模型生命周期；请求前检测 `/api/ps`，自动恢复已卸载模型 |
-| **EMA 超时管理** | 动态超时公式：`base + estimated_tokens / current_tps * 2.0 + tier_penalty`，实时 token/s 采用指数移动平均平滑追踪 |
-| **Guard Layer 安全** | 对生成代码和工具调用进行安全校验；严格度随模型等级自适应 — S 级放宽，C/D 级严格白名单 |
-| **7 工具注册表** | `read_file`、`write_file`、`edit_file`、`run_command`、`glob_search`、`grep_search`、`task_complete` |
-| **自动模型升级** | B/C/D 级模型遇到 P1 严重问题时，自动检测本地最强可用模型并切换 (`--auto-upgrade`) |
+- **自建 ReAct 循环** — Thought/Action/Observation 循环，纯正则提取 + JSON Schema 校验，无 LangChain/CrewAI/AutoGPT 依赖
+- **7 工具注册表** — read_file、write_file、edit_file、run_command、glob_search、grep_search、task_complete，使用 Ollama tool_calls 格式
+- **三级容错** — Tier-1 格式修复（12 正则模式）→ Tier-2 简化重试 → Tier-3 降级纯文本提取
+- **模型能力检测器** — 查询 `/api/show` 获取参数/量化/上下文窗口，计算能力分数（0.0-1.0），分级 S/A/B/C/D
+- **五级模型分级** — S（>=32B）到 D（<1B），影响 max_turns、工具白名单、容错策略和 guard 严格度
+- **自动模型升级** — B/C/D 级模型遇到 P1 问题时自动切换到当前硬件上最强的可用模型
+- **动态超时** — `timeout = base + estimated_tokens / current_tps * 2.0 + tier_penalty`，基于 EMA 平滑的实时 token/s 追踪
+- **模型卸载自动恢复** — 请求前检查 `/api/ps`；若已卸载，发送 `keep_alive=-1` 的热身请求
 
 ### 快速开始
 
 ```bash
-# 安装
-pip install loop-ollama
+git clone https://github.com/PerryLink/loop-ollama.git
+cd loop-ollama
+pip install -r requirements.txt
 
-# 运行 (需先启动 Ollama: ollama serve)
-loop-ollama run --model "llama3" --goal "构建一个简单的 Flask API"
+# 直接运行
+python -m src.cli --goal "构建一个简单的 Flask API" --model llama3
+
+# 或使用 PyInstaller 构建独立二进制文件
+pip install pyinstaller
+pyinstaller --onefile src/cli.py --name loop-ollama
+./dist/loop-ollama --goal "重构认证模块"
 ```
 
-**运行环境**：Python >= 3.10，Ollama 已安装并运行 (`ollama serve`)。
+环境要求：Python >= 3.10，Ollama 已安装并运行（`ollama serve`）。
 
 ### 常见问题
 
-**问：什么模型效果最好？**
-答：**S 级**（>=32B 参数，如 Qwen 2.5 32B、Llama 3 70B）可达到接近云端质量。**A 级**（7–14B，如 Llama 3 8B、Mistral 7B）在保守轮次限制下可用。**B 级及以下**（<7B）频繁触发三级容错，仅适合简单单文件任务。
+**问：哪些模型最适合 loop-ollama？**
+答：S 级模型（>=32B 参数，如 Qwen 2.5 32B、Llama 3 70B）可提供接近云端质量的结果。A 级模型（7-14B，如 Llama 3 8B、Mistral 7B）在较保守的轮次限制下可用。B 级及以下（<7B）属于实验性质——会频繁触发三级容错引擎，最适合简单的单文件任务。
 
-**问：为什么需要三级容错？**
-答：本地模型产生畸形 JSON 工具调用的概率远高于云端 API。Tier-1（12 个正则模式）修复常见语法错误；失败则 Tier-2 以简化 prompt 和严格 schema 重试；仍失败则 Tier-3 降级为纯文本提取。分层策略在不浪费 token 的前提下最大化解析成功率。
+**问：为什么容错引擎有三个层级？**
+答：本地模型产生格式错误的 JSON 工具调用的频率远高于云端 API。Tier-1（12 个正则模式）修复常见的 JSON 语法错误。若失败，Tier-2 使用简化的提示词和严格的 schema 约束重试。若仍失败，Tier-3 降级为使用 12 条启发式规则进行纯文本提取。这种分层方法在不过度浪费 token 的情况下最大化成功解析的概率。
 
-**问：模型自动升级如何触发？**
-答：当 B/C/D 级模型遇到 P1 严重问题（核心功能故障）时，`ModelDetector` 查询所有本地可用模型，按能力分数排序提交推荐。使用 `--auto-upgrade` 时静默切换，当前会话剩余任务均使用新模型。
+**问：模型自动升级是如何工作的？**
+答：当 B/C/D 级模型遇到 P1 严重问题（核心功能故障）时，`ModelDetector` 查询 Ollama 获取所有本地可用模型，按能力分数排序，并提示用户切换。若设置了 `--auto-upgrade`，则自动切换并在当前会话的剩余时间内继续使用。
 
-**问：与云端编程智能体有何区别？**
-答：**零 API 费用、零数据外泄、完全离线可用。** 整个智能体 — ReAct 循环、工具注册表、容错、分级、安全守卫 — 都在本地 Ollama 实例上运行，并可编译为单个 PyInstaller 二进制文件，适用于气隙环境。
+---
 
-**问：Ollama 中途卸载模型能恢复吗？**
-答：能。每次请求前引擎检查 `/api/ps`；若目标模型已卸载，自动发送 `keep_alive=-1` 预热请求重新加载，然后继续原任务。
+## Related Projects / 相关项目
 
-### 相关项目
+- [loop-superpowers](https://github.com/PerryLink/loop-superpowers) — pure Skill mini-loops for Claude Code
+- [loop-opencode](https://github.com/PerryLink/loop-opencode) — closed-loop driver for OpenCode CLI
+- [loop-codex](https://github.com/PerryLink/loop-codex) — dual-channel (JSON-RPC + CDP) driver for Codex Desktop
+- [loop-copilot](https://github.com/PerryLink/loop-copilot) — closed-loop driver for GitHub Copilot SDK
+- [loop-cursor](https://github.com/PerryLink/loop-cursor) — closed-loop driver for Cursor IDE SDK
+- [loop-deepseek](https://github.com/PerryLink/loop-deepseek) — self-built ReAct agent loop for DeepSeek API
+- [loop-antigravity](https://github.com/PerryLink/loop-antigravity) — closed-loop driver for Google Antigravity / Gemini
+- [loop-openclaw](https://github.com/PerryLink/loop-openclaw) — multi-agent loop config generator for OpenClaw Gateway
 
-| 项目 | 说明 |
-|------|------|
-| [loop-everything](https://github.com/PerryLink/loop-everything) | 生态系统中枢 — 所有 loop 项目的元仓库 |
-| [loop-aider](https://github.com/PerryLink/loop-aider) | Aider CLI 自主编程循环 |
-| [loop-superpowers](https://github.com/PerryLink/loop-superpowers) | Claude Code 的纯 Skill 微型循环 |
-| [loop-hermes](https://github.com/PerryLink/loop-hermes) | Hermes SDK 自主编程循环 |
-| [loop-antigravity](https://github.com/PerryLink/loop-antigravity) | Google Gemini API 自主编程循环 |
-| [loop-codex](https://github.com/PerryLink/loop-codex) | Codex Desktop CDP 自主编程循环 |
-| [loop-copilot](https://github.com/PerryLink/loop-copilot) | GitHub Copilot SDK 自主编程循环 |
-| [loop-cursor](https://github.com/PerryLink/loop-cursor) | Cursor IDE SDK 自主编程循环 |
-| [loop-opencode](https://github.com/PerryLink/loop-opencode) | OpenCode CLI 自主编程循环 |
-| [loop-openclaw](https://github.com/PerryLink/loop-openclaw) | OpenClaw Gateway 多智能体循环生成器 |
-| [loop-deepseek](https://github.com/PerryLink/loop-deepseek) | DeepSeek API 自主编程循环 |
-| [loop-claudecode](https://github.com/PerryLink/loop-claudecode) | 参考实现，含操作系统级安全闸门 |
+## License / 许可证
 
-### 完成度
+[Apache License 2.0](./LICENSE) -- see [LICENSE](./LICENSE) for full text.
 
-当前完成度：**85%**。已完成：ReAct 循环引擎、7 工具注册表、三级容错、5 级模型分级、自动模型升级、EMA 超时管理、模型卸载自动恢复、CLI 入口。待完善：复杂多步任务的收敛检测准确度需更多真实场景验证；C/D 级模型在长上下文场景下的容错成功率需增加启发式规则。
-
-### 许可证
-
-Apache 2.0 © 2026 Perry Link
+Copyright 2026 Perry Link
